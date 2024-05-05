@@ -17,7 +17,9 @@ class CompanyController extends Controller
      */
     public function index()
     {
-        return  JWTAuth::user();
+        $companies = Company::where('user_id', JWTAuth::user()->id)->get();
+
+        return response()->json($companies, 200);
     }
 
     /**
@@ -34,7 +36,7 @@ class CompanyController extends Controller
                 'required',
                 'string',
                 'regex:/^(10|20)\d{9}$/',
-                new UniqueRucRule(JWTAuth::user()->id)
+                new UniqueRucRule(),
             ],
             'address' => 'required|string',
             'logo' => 'nullable|image',
@@ -68,9 +70,13 @@ class CompanyController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function show($id)
+    public function show($company)
     {
-        //
+        $company = Company::where('ruc', $company)
+                            ->where('user_id', JWTAuth::user()->id)
+                            ->firstOrFail();
+
+        return response()->json($company, 200);
     }
 
     /**
@@ -80,9 +86,46 @@ class CompanyController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, $company)
     {
-        //
+        $company = Company::where('ruc', $company)
+        ->where('user_id', JWTAuth::user()->id)
+        ->firstOrFail();
+        
+        $data = $request->validate([
+            'social_reason' => 'nullable|string',
+            'ruc' => [
+                'nullable',
+                'string',
+                'regex:/^(10|20)\d{9}$/',
+                new UniqueRucRule($company->id)
+            ],
+            'address' => 'nullable|string|min:5',
+            'logo' => 'nullable|image',
+            'sol_user' => 'nullable|string|min:5',
+            'sol_pass' => 'nullable|string|min:5',
+            'certificate' => 'nullable|file|mimes:pem,txt',
+            'client_id' => 'nullable|string',
+            'client_secret' => 'nullable|string',
+            'production' => 'nullable|boolean',
+        ]);
+        
+        if($request->hasFile('logo'))
+        {
+            $data['logo_path'] = $request->file('logo')->store('logos');
+        }
+        if($request->hasFile('certificate'))
+        {
+            $data['certificate_path'] = $request->file('certificate')->store('certificates');
+        }
+        
+
+        $company->update($data);
+
+        return response()->json([
+            'message' => 'Empresa actualizada correctamente',
+            'company' => $company
+        ], 200);
     }
 
     /**
@@ -91,8 +134,13 @@ class CompanyController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function destroy($id)
+    public function destroy($company)
     {
-        //
+        $company = Company::where('ruc', $company)
+                            ->where('user_id', JWTAuth::user()->id)
+                            ->firstOrFail();
+        $company->delete();
+
+        return response()->json(['message' => 'Empresa eliminada correctamente'], 200);
     }
 }

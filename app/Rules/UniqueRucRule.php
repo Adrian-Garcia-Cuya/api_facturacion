@@ -7,15 +7,15 @@ use Illuminate\Contracts\Validation\Rule;
 
 class UniqueRucRule implements Rule
 {
-    public $userId;
+    public $company_id;
     /**
      * Create a new rule instance.
      *
      * @return void
      */
-    public function __construct($userId)
+    public function __construct($company_id = null)
     {
-        $this->userId = $userId;
+        $this->company_id = $company_id;
     }
 
     /**
@@ -28,7 +28,10 @@ class UniqueRucRule implements Rule
     public function passes($attribute, $value)
     {
         $company = Company::where('ruc', $value)
-                            ->where('user_id', $this->userId)
+                            ->where('user_id', auth()->id())
+                            ->when($this->company_id, function($query, $company){
+                                $query->where('id', '!=', $company);
+                            })
                             ->first();
         if($company)
         {
