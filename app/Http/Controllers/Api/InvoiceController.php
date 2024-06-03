@@ -15,6 +15,7 @@ use Greenter\Model\Sale\Legend;
 use Greenter\Model\Sale\SaleDetail;
 use Greenter\Report\XmlUtils;
 use Illuminate\Http\Request;
+use Luecano\NumeroALetras\NumeroALetras;
 
 use Greenter\See;
 use Greenter\Ws\Services\SunatEndpoints;
@@ -31,6 +32,9 @@ class InvoiceController extends Controller
                             ->firstOrFail();
 
         $this->setTotales($data);
+        $this->setLegends($data);
+
+        return $data;
         
         $sunat = new SunatService();
 
@@ -63,5 +67,16 @@ class InvoiceController extends Controller
         $data['mtoImpVenta'] = floor($data['subTotal']* 10)/10;
 
         $data['redondeo'] = $data['mtoImpVenta'] - $data['subTotal'];
+    }
+
+    public function setLegends(&$data){
+        $formatter = new NumeroALetras();
+
+        $data['legends'] = [
+            [
+                "code" => "1000",
+                "value" => $formatter->toInvoice($data['mtoImpVenta'], 2, 'SOLES'),
+            ]
+        ];
     }
 }
