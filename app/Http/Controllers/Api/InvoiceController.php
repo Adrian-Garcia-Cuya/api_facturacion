@@ -26,11 +26,12 @@ class InvoiceController extends Controller
     {
         $data = $request->all();
         
-
         $company = Company::where('user_id', auth()->id())
                             ->where('ruc', $data['company']['ruc'])
                             ->firstOrFail();
 
+        $this->setTotales($data);
+        
         $sunat = new SunatService();
 
         $see = $sunat->getSee($company);
@@ -42,5 +43,25 @@ class InvoiceController extends Controller
         $response['sunatResponse'] = $sunat->sunatResponse($result);
 
         return response()->json($response, 201);
+    }
+
+    public function setTotales(&$data){
+        $details = collect($data['details']);
+        $data['mtoOperGravadas'] = $details->where('tipAfeIgv', 10)->sum('mtoValorVenta');
+        $data['mtoOperExoneradas'] = $details->where('tipAfeIgv', 20)->sum('mtoValorVenta');
+        $data['mtoOperInafectas'] = $details->where('tipAfeIgv', 30)->sum('mtoValorVenta');
+        $data['mtoOperExportacion'] = $details->where('tipAfeIgv', 40)->sum('mtoValorVenta');
+        $data['mtoOperGratuitas'] = $details->whereNotIn('tipAfeIgv', [10, 20, 30, 40])->sum('mtoValorVenta');
+
+        $data['mtoIGV'] = $details->whereIn('tipAfeIgv', [10, 20, 30, 40])->sum('igv');
+        $data['mtoIGVGratuitas'] = $details->whereNotIn('tipAfeIgv', [10, 20, 30, 40])->sum('igv');
+        $data['totalImpuestos'] = $data['mtoIGV'];
+
+        $data['valorVenta'] = $details->whereIn('tipAfeIgv', [10, 20, 30, 40])->sum('mtoValorVenta');
+        $data['subTotal'] = $data['valorVenta'] + $data['mtoIGV'];
+
+        $data['mtoImpVenta'] = floor($data['subTotal']* 10)/10;
+
+        $data['redondeo'] = $data['mtoImpVenta'] - $data['subTotal'];
     }
 }
